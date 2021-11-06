@@ -1,5 +1,3 @@
-import { ItemWithEncryptedFields } from "./types"
-
 export interface Encryptor {
   readonly version: string
   encrypt<T, U extends keyof T>(props: EncryptProps<T, U>): EncryptResult<T, U>
@@ -22,6 +20,10 @@ export interface DecryptProps<T, U extends keyof T> {
   key: Uint8Array
   nonce: Uint8Array
   fieldsToDecrypt: U[]
+}
+
+export type ItemWithEncryptedFields<T, U extends keyof T> = Omit<T, U> & {
+  [K in U]: Uint8Array
 }
 
 export interface DecryptResult<T> {

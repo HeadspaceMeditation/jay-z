@@ -4,9 +4,13 @@ import {
   ready,
   to_base64
 } from "libsodium-wrappers"
-import { DataKey, DataKeyProvider } from "../main/DataKeyProvider"
-import { FixedDataKeyProvider } from "../main/FixedDataKeyProvider"
 import { JayZ, JayZProps } from "../main/JayZ"
+import { FixedKeyProvider } from "../main/key-providers"
+import {
+  DecryptDataKeyResult,
+  GenerateDataKeyResult,
+  KeyProvider
+} from "../main/key-providers/DataKeyProvider"
 import { aBankAccount, BankAccount } from "./util"
 
 describe("JayZ", () => {
@@ -135,7 +139,7 @@ describe("JayZ", () => {
 
 function setup(
   config: JayZProps = {
-    keyProvider: new FixedDataKeyProvider(
+    keyProvider: new FixedKeyProvider(
       to_base64(randombytes_buf(crypto_kdf_KEYBYTES))
     )
   }
@@ -145,10 +149,10 @@ function setup(
   return { jayz, bankAccount }
 }
 
-class CountingKeyProvider implements DataKeyProvider {
+class CountingKeyProvider implements KeyProvider {
   public keysIssued = 0
 
-  async generateDataKey(): Promise<DataKey> {
+  async generateDataKey(): Promise<GenerateDataKeyResult> {
     await ready
     const key = randombytes_buf(crypto_kdf_KEYBYTES)
     this.keysIssued += 1
@@ -158,7 +162,9 @@ class CountingKeyProvider implements DataKeyProvider {
     }
   }
 
-  async decryptDataKey(encryptedDataKey: Uint8Array): Promise<Uint8Array> {
-    return encryptedDataKey.slice(0)
+  async decryptDataKey(
+    encryptedDataKey: Uint8Array
+  ): Promise<DecryptDataKeyResult> {
+    return { plaintextKey: encryptedDataKey.slice(0) }
   }
 }

@@ -1,11 +1,13 @@
 import { memzero } from "libsodium-wrappers"
-import { DataKey, DataKeyProvider } from "./DataKeyProvider"
-import { Encryptor } from "./Encryptor"
-import { LibsodiumEncryptor } from "./LibsodiumEncryptor"
+import { Encryptor, LibsodiumEncryptor } from "./encryptors"
+import {
+  GenerateDataKeyResult,
+  KeyProvider
+} from "./key-providers/DataKeyProvider"
 import { EncryptedItemMetadata, EncryptedJayZItem } from "./types"
 
 export interface JayZProps {
-  keyProvider: DataKeyProvider
+  keyProvider: KeyProvider
   encryptor?: Encryptor
   maxUsesPerDataKey?: number
 }
@@ -16,10 +18,10 @@ export interface EncryptItemProps<T, U extends keyof T> {
 }
 
 export class JayZ {
-  private keyProvider: DataKeyProvider
+  private keyProvider: KeyProvider
   private encryptor: Encryptor = new LibsodiumEncryptor()
   private maxUsesPerDataKey: number
-  private currentDataKey?: Promise<DataKey>
+  private currentDataKey?: Promise<GenerateDataKeyResult>
   private currentDataKeyUsesRemaining: number
 
   constructor(config: JayZProps) {
@@ -76,15 +78,17 @@ export class JayZ {
     const encryptedItem = { ...itemToDecrypt }
     delete (encryptedItem as any).__jayz__metadata
 
-    const key = await this.keyProvider.decryptDataKey(encryptedDataKey)
+    const { plaintextKey } = await this.keyProvider.decryptDataKey(
+      encryptedDataKey
+    )
     const { decryptedItem } = this.encryptor.decrypt<T, U>({
       item: encryptedItem,
       fieldsToDecrypt: encryptedFieldNames,
-      key,
+      key: plaintextKey,
       nonce
     })
 
-    memzero(key)
+    memzero(plaintextKey)
     return decryptedItem
   }
 
@@ -99,7 +103,7 @@ export class JayZ {
     return Promise.all(itemPromises)
   }
 
-  private getNextDataKey(): Promise<DataKey> {
+  private getNextDataKey(): Promise<GenerateDataKeyResult> {
     if (
       this.currentDataKey !== undefined &&
       this.currentDataKeyUsesRemaining > 0

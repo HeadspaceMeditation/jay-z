@@ -1,12 +1,16 @@
 import { KMS } from "aws-sdk"
 import { crypto_kdf_KEYBYTES } from "libsodium-wrappers"
-import { DataKey, DataKeyProvider } from "./DataKeyProvider"
+import {
+  DecryptDataKeyResult,
+  GenerateDataKeyResult,
+  KeyProvider
+} from "./DataKeyProvider"
 
 /** A KeyProvider that uses an AWS KMS CMK to generate data keys */
-export class KMSDataKeyProvider implements DataKeyProvider {
+export class KmsKeyProvider implements KeyProvider {
   constructor(private keyId: string, private kms: KMS = new KMS()) {}
 
-  async generateDataKey(): Promise<DataKey> {
+  async generateDataKey(): Promise<GenerateDataKeyResult> {
     const result = await this.kms
       .generateDataKey({
         KeyId: this.keyId,
@@ -19,7 +23,9 @@ export class KMSDataKeyProvider implements DataKeyProvider {
     return { plaintextKey, encryptedKey }
   }
 
-  async decryptDataKey(encryptedDataKey: Uint8Array): Promise<Uint8Array> {
+  async decryptDataKey(
+    encryptedDataKey: Uint8Array
+  ): Promise<DecryptDataKeyResult> {
     const result = await this.kms
       .decrypt({
         KeyId: this.keyId,
@@ -27,6 +33,6 @@ export class KMSDataKeyProvider implements DataKeyProvider {
       })
       .promise()
 
-    return result.Plaintext as Uint8Array
+    return { plaintextKey: result.Plaintext as Uint8Array }
   }
 }

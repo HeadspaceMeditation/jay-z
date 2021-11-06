@@ -5,26 +5,30 @@ import {
   ready,
   to_base64
 } from "libsodium-wrappers"
-import { DataKey, DataKeyProvider } from "./DataKeyProvider"
+import {
+  DecryptDataKeyResult,
+  GenerateDataKeyResult,
+  KeyProvider
+} from "./DataKeyProvider"
 
 /** A DataKeyProvider that uses a single, fixed key. This is intended for testing  */
-export class FixedDataKeyProvider implements DataKeyProvider {
-  static async forLibsodium(): Promise<FixedDataKeyProvider> {
+export class FixedKeyProvider implements KeyProvider {
+  static async forLibsodium(): Promise<FixedKeyProvider> {
     await ready
     const key = randombytes_buf(crypto_kdf_KEYBYTES)
-    return new FixedDataKeyProvider(to_base64(key))
+    return new FixedKeyProvider(to_base64(key))
   }
 
   constructor(private dataKey: string) {}
 
-  async generateDataKey(): Promise<DataKey> {
+  async generateDataKey(): Promise<GenerateDataKeyResult> {
     return {
       plaintextKey: from_base64(this.dataKey),
       encryptedKey: from_base64(this.dataKey)
     }
   }
 
-  async decryptDataKey(encryptedDataKey: Uint8Array): Promise<Uint8Array> {
-    return encryptedDataKey
+  async decryptDataKey(key: Uint8Array): Promise<DecryptDataKeyResult> {
+    return { plaintextKey: key }
   }
 }
