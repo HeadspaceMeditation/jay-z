@@ -1,12 +1,12 @@
 import {
   crypto_kdf_KEYBYTES,
   randombytes_buf,
-  to_base64,
-  ready
+  ready,
+  to_base64
 } from "libsodium-wrappers"
 import { DataKey, DataKeyProvider } from "../main/DataKeyProvider"
 import { FixedDataKeyProvider } from "../main/FixedDataKeyProvider"
-import { JayZ, JayZConfig } from "../main/JayZ"
+import { JayZ, JayZProps } from "../main/JayZ"
 import { aBankAccount, BankAccount } from "./util"
 
 describe("JayZ", () => {
@@ -90,11 +90,8 @@ describe("JayZ", () => {
       { item: bankAccount, fieldsToEncrypt }
     ])
 
-    const [
-      decryptedItem1,
-      decryptedItem2,
-      decryptedItem3
-    ] = await jayz.decryptItems([item1, item2, item3])
+    const [decryptedItem1, decryptedItem2, decryptedItem3] =
+      await jayz.decryptItems([item1, item2, item3])
 
     expect(decryptedItem1).toEqual(bankAccount)
     expect(decryptedItem2).toEqual(bankAccount)
@@ -137,7 +134,7 @@ describe("JayZ", () => {
 })
 
 function setup(
-  config: JayZConfig = {
+  config: JayZProps = {
     keyProvider: new FixedDataKeyProvider(
       to_base64(randombytes_buf(crypto_kdf_KEYBYTES))
     )
@@ -156,8 +153,8 @@ class CountingKeyProvider implements DataKeyProvider {
     const key = randombytes_buf(crypto_kdf_KEYBYTES)
     this.keysIssued += 1
     return {
-      encryptedDataKey: key,
-      dataKey: key
+      encryptedKey: key,
+      plaintextKey: key
     }
   }
 

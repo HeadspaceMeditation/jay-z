@@ -19,8 +19,8 @@ export class FixedDataKeyProvider implements DataKeyProvider {
 
   async generateDataKey(): Promise<DataKey> {
     return {
-      encryptedDataKey: from_base64(this.dataKey),
-      dataKey: from_base64(this.dataKey)
+      plaintextKey: from_base64(this.dataKey),
+      encryptedKey: from_base64(this.dataKey)
     }
   }
 

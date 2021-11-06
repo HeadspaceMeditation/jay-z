@@ -1,33 +1,29 @@
-import { EncryptionScheme, ItemWithEncryptedFields } from "./types"
-
-export type EncryptParams<T, K extends keyof T> = {
-  item: T
-  fieldsToEncrypt: K[]
-  dataKey: Uint8Array
-}
-
-export type EncryptResult<T, K extends keyof T> = {
-  encryptedItem: ItemWithEncryptedFields<T, K>
-  nonce: Uint8Array
-}
-
-export type DecryptParams<T, K extends keyof T> = {
-  encryptedItem: ItemWithEncryptedFields<T, K>
-  fieldsToDecrypt: K[]
-  dataKey: Uint8Array
-  nonce: Uint8Array
-}
-
-export type DecryptResult<T> = {
-  decryptedItem: T
-}
+import { ItemWithEncryptedFields } from "./types"
 
 export interface Encryptor {
-  readonly scheme: EncryptionScheme
+  readonly version: string
+  encrypt<T, U extends keyof T>(props: EncryptProps<T, U>): EncryptResult<T, U>
+  decrypt<T, U extends keyof T>(params: DecryptProps<T, U>): DecryptResult<T>
+}
 
-  encrypt<T, K extends keyof T>(
-    params: EncryptParams<T, K>
-  ): EncryptResult<T, K>
+export interface EncryptProps<T, U extends keyof T> {
+  item: T
+  key: Uint8Array
+  fieldsToEncrypt: U[]
+}
 
-  decrypt<T, K extends keyof T>(params: DecryptParams<T, K>): DecryptResult<T>
+export interface EncryptResult<T, U extends keyof T> {
+  encryptedItem: ItemWithEncryptedFields<T, U>
+  nonce: Uint8Array
+}
+
+export interface DecryptProps<T, U extends keyof T> {
+  item: ItemWithEncryptedFields<T, U>
+  key: Uint8Array
+  nonce: Uint8Array
+  fieldsToDecrypt: U[]
+}
+
+export interface DecryptResult<T> {
+  decryptedItem: T
 }

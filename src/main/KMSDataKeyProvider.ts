@@ -14,13 +14,9 @@ export class KMSDataKeyProvider implements DataKeyProvider {
       })
       .promise()
 
-    const dataKey = result.Plaintext as Uint8Array
-    const encryptedDataKey = result.CiphertextBlob as Uint8Array
-
-    return {
-      dataKey,
-      encryptedDataKey
-    }
+    const plaintextKey = result.Plaintext as Uint8Array
+    const encryptedKey = result.CiphertextBlob as Uint8Array
+    return { plaintextKey, encryptedKey }
   }
 
   async decryptDataKey(encryptedDataKey: Uint8Array): Promise<Uint8Array> {

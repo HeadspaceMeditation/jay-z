@@ -8,37 +8,40 @@ import {
   from_string,
   memzero,
   randombytes_buf,
-  ready,
   to_string
 } from "libsodium-wrappers"
 import {
-  DecryptParams,
+  DecryptProps,
   DecryptResult,
   Encryptor,
-  EncryptParams,
+  EncryptProps,
   EncryptResult
 } from "./Encryptor"
-import { EncryptionScheme, ItemWithEncryptedFields, KeyType } from "./types"
+import { ItemWithEncryptedFields, KeyType } from "./types"
 
 /** JSON.parse returns this object, which isn't a node Buffer */
-export type JSONBuffer = {
+export interface JSONBuffer {
   data: Array<number>
   type: "Buffer"
 }
 
-export class LibsodiumEncryptor implements Encryptor {
-  public readonly scheme = EncryptionScheme.V0_LIBSODIUM
+enum LibsodiumEncryptorVersion {
+  v0 = "v0_libsodium"
+}
 
-  encrypt<T, K extends keyof T>(
-    params: EncryptParams<T, K>
-  ): EncryptResult<T, K> {
-    const { item, fieldsToEncrypt, dataKey } = params
+export class LibsodiumEncryptor implements Encryptor {
+  readonly version = LibsodiumEncryptorVersion.v0
+
+  encrypt<T, U extends keyof T>(
+    props: EncryptProps<T, U>
+  ): EncryptResult<T, U> {
+    const { item, fieldsToEncrypt, key } = props
     const nonce = randombytes_buf(crypto_secretbox_NONCEBYTES)
-    const encryptionKey = this.deriveKey(dataKey, KeyType.ENCRYPTION)
+    const encryptionKey = this.deriveKey(key, KeyType.ENCRYPTION)
 
     const encryptedFields: {
-      [P in K]: Uint8Array
-    } = {} as ItemWithEncryptedFields<T, K>
+      [K in U]: Uint8Array
+    } = {} as ItemWithEncryptedFields<T, U>
 
     fieldsToEncrypt.forEach((fieldName) => {
       const fieldValue = item[fieldName]
@@ -57,16 +60,16 @@ export class LibsodiumEncryptor implements Encryptor {
     return { encryptedItem, nonce }
   }
 
-  decrypt<T, K extends keyof T>(params: DecryptParams<T, K>): DecryptResult<T> {
-    const { encryptedItem, fieldsToDecrypt, nonce, dataKey } = params
-    const decryptionKey = this.deriveKey(dataKey, KeyType.ENCRYPTION)
+  decrypt<T, U extends keyof T>(props: DecryptProps<T, U>): DecryptResult<T> {
+    const { item, fieldsToDecrypt, nonce, key } = props
+    const decryptionKey = this.deriveKey(key, KeyType.ENCRYPTION)
 
     const decryptedItem: { [P in keyof T]: T[P] } = {
-      ...encryptedItem
+      ...item
     } as any
 
     fieldsToDecrypt.forEach((fieldName) => {
-      const cipherText = encryptedItem[fieldName]
+      const cipherText = item[fieldName]
       if (cipherText) {
         const jsonBytes = crypto_secretbox_open_easy(
           cipherText,
