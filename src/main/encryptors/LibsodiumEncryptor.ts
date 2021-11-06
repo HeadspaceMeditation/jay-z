@@ -10,13 +10,14 @@ import {
   randombytes_buf,
   to_string
 } from "libsodium-wrappers"
-import { ItemWithEncryptedFields, KeyType } from "../types"
+import { KeyType } from "../types"
 import {
   DecryptProps,
   DecryptResult,
   Encryptor,
   EncryptProps,
-  EncryptResult
+  EncryptResult,
+  ItemWithEncryptedFields
 } from "./Encryptor"
 
 /** JSON.parse returns this object, which isn't a node Buffer */

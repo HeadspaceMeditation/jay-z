@@ -9,7 +9,7 @@ import {
   DecryptDataKeyResult,
   GenerateDataKeyResult,
   KeyProvider
-} from "./DataKeyProvider"
+} from "./KeyProvider"
 
 /** A DataKeyProvider that uses a single, fixed key. This is intended for testing  */
 export class FixedKeyProvider implements KeyProvider {

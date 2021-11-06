@@ -8,7 +8,6 @@ import {
 import { FixedKeyProvider } from "../main/key-providers"
 import { LibsodiumEncryptor } from "../main/encryptors"
 import { KeyType } from "../main/types"
-
 import { aBankAccount, BankAccount } from "./util"
 
 describe("LibsodiumEncryptor", () => {
