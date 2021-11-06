@@ -9,7 +9,7 @@
     "./src"
   ],
   "dependencies": {
-    "aws-sdk": "^2.640.0",
+    "@aws-sdk/client-kms": "^3.40.0",
     "fast-json-stable-stringify": "^2.1.0",
     "js-yaml": "^3.13.1",
     "libsodium-wrappers": "^0.7.6"
