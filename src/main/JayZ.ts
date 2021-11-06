@@ -1,9 +1,6 @@
 import { memzero } from "libsodium-wrappers"
 import { Encryptor, LibsodiumEncryptor } from "./encryptors"
-import {
-  GenerateDataKeyResult,
-  KeyProvider
-} from "./key-providers/DataKeyProvider"
+import { GenerateDataKeyResult, KeyProvider } from "./key-providers"
 import { EncryptedItemMetadata, EncryptedJayZItem } from "./types"
 
 export interface JayZProps {

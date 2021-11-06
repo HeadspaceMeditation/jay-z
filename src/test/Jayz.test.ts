@@ -5,12 +5,12 @@ import {
   to_base64
 } from "libsodium-wrappers"
 import { JayZ, JayZProps } from "../main/JayZ"
-import { FixedKeyProvider } from "../main/key-providers"
 import {
   DecryptDataKeyResult,
+  FixedKeyProvider,
   GenerateDataKeyResult,
   KeyProvider
-} from "../main/key-providers/DataKeyProvider"
+} from "../main/key-providers"
 import { aBankAccount, BankAccount } from "./util"
 
 describe("JayZ", () => {
