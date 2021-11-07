@@ -39,6 +39,7 @@ export class JayZ {
       encryptedFieldNames: fieldsToEncrypt
     }
 
+    memzero(plaintextKey)
     return {
       ...encryptedItem,
       __jayz__metadata
