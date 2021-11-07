@@ -7,6 +7,7 @@ export enum KeyType {
 
 export interface EncryptedItemMetadata<T, U extends keyof T> {
   version: string
+  keyId?: string
   nonce: Uint8Array
   encryptedDataKey: Uint8Array
   encryptedFieldNames: U[]

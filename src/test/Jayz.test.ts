@@ -1,6 +1,7 @@
 import { crypto_kdf_KEYBYTES, randombytes_buf, ready, to_base64 } from "libsodium-wrappers"
 import { JayZ, JayZProps } from "../main/JayZ"
-import { DecryptDataKeyResult, FixedKeyProvider, GenerateDataKeyResult, KeyProvider } from "../main/key-providers"
+import { FixedKeyProvider, LibsodiumKdfKeyProvider } from "../main/key-providers"
+import { CountingKeyProvider } from "./key-providers/CountingKeyProvider"
 import { aBankAccount, BankAccount } from "./util"
 
 describe("JayZ", () => {
@@ -69,8 +70,10 @@ describe("JayZ", () => {
   it("should reuse data keys when encryptItems invoked once with multiple items", async () => {
     const keyProvider = new CountingKeyProvider()
     const { jayz, bankAccount } = setup({
-      keyProvider,
-      maxUsesPerDataKey: 2
+      keyProvider: new LibsodiumKdfKeyProvider({
+        keyProvider,
+        numKeysToDerivePerDataKey: 2
+      })
     })
 
     const [item1, item2, item3] = await jayz.encryptItems([
@@ -86,15 +89,16 @@ describe("JayZ", () => {
     expect(decryptedItem3).toEqual(bankAccount)
     expect(keyProvider.keysIssued).toEqual(2)
     expect(item1.__jayz__metadata.encryptedDataKey).toEqual(item2.__jayz__metadata.encryptedDataKey)
-
     expect(item1.__jayz__metadata.encryptedDataKey).not.toEqual(item3.__jayz__metadata.encryptedDataKey)
   })
 
   it("should reuse data keys when encryptItems invoked multiple times", async () => {
     const keyProvider = new CountingKeyProvider()
     const { jayz, bankAccount } = setup({
-      keyProvider,
-      maxUsesPerDataKey: 2
+      keyProvider: new LibsodiumKdfKeyProvider({
+        keyProvider,
+        numKeysToDerivePerDataKey: 2
+      })
     })
 
     const encryptAndDecrypt = async () => {
@@ -123,22 +127,4 @@ function setup(
   const bankAccount = aBankAccount()
   const jayz = new JayZ(config)
   return { jayz, bankAccount }
-}
-
-class CountingKeyProvider implements KeyProvider {
-  public keysIssued = 0
-
-  async generateDataKey(): Promise<GenerateDataKeyResult> {
-    await ready
-    const key = randombytes_buf(crypto_kdf_KEYBYTES)
-    this.keysIssued += 1
-    return {
-      encryptedKey: key,
-      plaintextKey: key
-    }
-  }
-
-  async decryptDataKey(encryptedDataKey: Uint8Array): Promise<DecryptDataKeyResult> {
-    return { plaintextKey: encryptedDataKey.slice(0) }
-  }
 }

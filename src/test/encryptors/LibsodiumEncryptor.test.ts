@@ -1,14 +1,8 @@
 import stringify from "fast-json-stable-stringify"
-import {
-  crypto_kdf_derive_from_key,
-  crypto_secretbox_easy,
-  crypto_secretbox_KEYBYTES,
-  from_string
-} from "libsodium-wrappers"
-import { FixedKeyProvider } from "../main/key-providers"
-import { LibsodiumEncryptor } from "../main/encryptors"
-import { KeyType } from "../main/types"
-import { aBankAccount, BankAccount } from "./util"
+import { crypto_secretbox_easy, from_string } from "libsodium-wrappers"
+import { LibsodiumEncryptor } from "../../main/encryptors"
+import { FixedKeyProvider } from "../../main/key-providers"
+import { aBankAccount, BankAccount } from "../util"
 
 describe("LibsodiumEncryptor", () => {
   const account = aBankAccount()
@@ -28,16 +22,8 @@ describe("LibsodiumEncryptor", () => {
     expect(encryptedItem.pk).toEqual("account-123")
     expect(encryptedItem.sk).toEqual("Flava Flav")
 
-    const encryptionKey = crypto_kdf_derive_from_key(
-      crypto_secretbox_KEYBYTES,
-      KeyType.ENCRYPTION,
-      "__jayz__",
-      plaintextKey
-    )
-
     fieldsToEncrypt.forEach((fieldName) => {
-      const expectedValue = crypto_secretbox_easy(from_string(stringify(account[fieldName])), nonce, encryptionKey)
-
+      const expectedValue = crypto_secretbox_easy(from_string(stringify(account[fieldName])), nonce, plaintextKey)
       expect(encryptedItem[fieldName]).toEqual(expectedValue)
     })
   })
