@@ -1,12 +1,16 @@
 import {
   crypto_kdf_KEYBYTES,
   randombytes_buf,
-  to_base64,
-  ready
+  ready,
+  to_base64
 } from "libsodium-wrappers"
-import { DataKey, DataKeyProvider } from "../main/DataKeyProvider"
-import { FixedDataKeyProvider } from "../main/FixedDataKeyProvider"
-import { JayZ, JayZConfig } from "../main/JayZ"
+import { JayZ, JayZProps } from "../main/JayZ"
+import {
+  DecryptDataKeyResult,
+  FixedKeyProvider,
+  GenerateDataKeyResult,
+  KeyProvider
+} from "../main/key-providers"
 import { aBankAccount, BankAccount } from "./util"
 
 describe("JayZ", () => {
@@ -90,11 +94,8 @@ describe("JayZ", () => {
       { item: bankAccount, fieldsToEncrypt }
     ])
 
-    const [
-      decryptedItem1,
-      decryptedItem2,
-      decryptedItem3
-    ] = await jayz.decryptItems([item1, item2, item3])
+    const [decryptedItem1, decryptedItem2, decryptedItem3] =
+      await jayz.decryptItems([item1, item2, item3])
 
     expect(decryptedItem1).toEqual(bankAccount)
     expect(decryptedItem2).toEqual(bankAccount)
@@ -137,8 +138,8 @@ describe("JayZ", () => {
 })
 
 function setup(
-  config: JayZConfig = {
-    keyProvider: new FixedDataKeyProvider(
+  config: JayZProps = {
+    keyProvider: new FixedKeyProvider(
       to_base64(randombytes_buf(crypto_kdf_KEYBYTES))
     )
   }
@@ -148,20 +149,22 @@ function setup(
   return { jayz, bankAccount }
 }
 
-class CountingKeyProvider implements DataKeyProvider {
+class CountingKeyProvider implements KeyProvider {
   public keysIssued = 0
 
-  async generateDataKey(): Promise<DataKey> {
+  async generateDataKey(): Promise<GenerateDataKeyResult> {
     await ready
     const key = randombytes_buf(crypto_kdf_KEYBYTES)
     this.keysIssued += 1
     return {
-      encryptedDataKey: key,
-      dataKey: key
+      encryptedKey: key,
+      plaintextKey: key
     }
   }
 
-  async decryptDataKey(encryptedDataKey: Uint8Array): Promise<Uint8Array> {
-    return encryptedDataKey.slice(0)
+  async decryptDataKey(
+    encryptedDataKey: Uint8Array
+  ): Promise<DecryptDataKeyResult> {
+    return { plaintextKey: encryptedDataKey.slice(0) }
   }
 }

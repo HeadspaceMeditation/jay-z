@@ -5,8 +5,8 @@ import {
   crypto_secretbox_KEYBYTES,
   from_string
 } from "libsodium-wrappers"
-import { FixedDataKeyProvider } from "../main/FixedDataKeyProvider"
-import { LibsodiumEncryptor } from "../main/LibsodiumEncryptor"
+import { FixedKeyProvider } from "../main/key-providers"
+import { LibsodiumEncryptor } from "../main/encryptors"
 import { KeyType } from "../main/types"
 import { aBankAccount, BankAccount } from "./util"
 
@@ -21,13 +21,13 @@ describe("LibsodiumEncryptor", () => {
   ]
 
   it("should encrypt an item", async () => {
-    const dataKeyProvider = await FixedDataKeyProvider.forLibsodium()
-    const { dataKey } = await dataKeyProvider.generateDataKey()
+    const dataKeyProvider = await FixedKeyProvider.forLibsodium()
+    const { plaintextKey } = await dataKeyProvider.generateDataKey()
 
     const { encryptedItem, nonce } = encryptor.encrypt({
       item: account,
       fieldsToEncrypt,
-      dataKey
+      key: plaintextKey
     })
 
     expect(encryptedItem.pk).toEqual("account-123")
@@ -37,7 +37,7 @@ describe("LibsodiumEncryptor", () => {
       crypto_secretbox_KEYBYTES,
       KeyType.ENCRYPTION,
       "__jayz__",
-      dataKey
+      plaintextKey
     )
 
     fieldsToEncrypt.forEach((fieldName) => {
@@ -52,19 +52,19 @@ describe("LibsodiumEncryptor", () => {
   })
 
   it("should decrypt an item", async () => {
-    const dataKeyProvider = await FixedDataKeyProvider.forLibsodium()
-    const { dataKey } = await dataKeyProvider.generateDataKey()
+    const dataKeyProvider = await FixedKeyProvider.forLibsodium()
+    const { plaintextKey } = await dataKeyProvider.generateDataKey()
 
     const { encryptedItem, nonce } = encryptor.encrypt({
       item: account,
       fieldsToEncrypt,
-      dataKey
+      key: plaintextKey
     })
 
     const { decryptedItem } = encryptor.decrypt({
-      encryptedItem,
+      item: encryptedItem,
       nonce,
-      dataKey,
+      key: plaintextKey,
       fieldsToDecrypt: fieldsToEncrypt
     })
 
@@ -80,8 +80,8 @@ describe("LibsodiumEncryptor", () => {
       "bankName"
     ]
 
-    const dataKeyProvider = await FixedDataKeyProvider.forLibsodium()
-    const { dataKey } = await dataKeyProvider.generateDataKey()
+    const dataKeyProvider = await FixedKeyProvider.forLibsodium()
+    const { plaintextKey } = await dataKeyProvider.generateDataKey()
 
     const emptyValues = [undefined, null]
     emptyValues.forEach((emptyValue) => {
@@ -89,13 +89,13 @@ describe("LibsodiumEncryptor", () => {
       const { encryptedItem, nonce } = encryptor.encrypt({
         item,
         fieldsToEncrypt,
-        dataKey
+        key: plaintextKey
       })
 
       const { decryptedItem } = encryptor.decrypt({
-        encryptedItem,
+        item: encryptedItem,
         nonce,
-        dataKey,
+        key: plaintextKey,
         fieldsToDecrypt: fieldsToEncrypt
       })
 
@@ -104,8 +104,8 @@ describe("LibsodiumEncryptor", () => {
   })
 
   it("should encrypt and decrypt binary fields", async () => {
-    const dataKeyProvider = await FixedDataKeyProvider.forLibsodium()
-    const { dataKey } = await dataKeyProvider.generateDataKey()
+    const dataKeyProvider = await FixedKeyProvider.forLibsodium()
+    const { plaintextKey } = await dataKeyProvider.generateDataKey()
 
     const binaryItem = {
       name: "hello world",
@@ -115,13 +115,13 @@ describe("LibsodiumEncryptor", () => {
     const { encryptedItem, nonce } = encryptor.encrypt({
       item: binaryItem,
       fieldsToEncrypt: ["name", "binaryData"],
-      dataKey
+      key: plaintextKey
     })
 
     const { decryptedItem } = encryptor.decrypt({
-      encryptedItem,
+      item: encryptedItem,
       nonce,
-      dataKey,
+      key: plaintextKey,
       fieldsToDecrypt: ["name", "binaryData"]
     })
 
@@ -129,8 +129,8 @@ describe("LibsodiumEncryptor", () => {
   })
 
   it("should encrypt and decrypt binary fields recursively", async () => {
-    const dataKeyProvider = await FixedDataKeyProvider.forLibsodium()
-    const { dataKey } = await dataKeyProvider.generateDataKey()
+    const dataKeyProvider = await FixedKeyProvider.forLibsodium()
+    const { plaintextKey } = await dataKeyProvider.generateDataKey()
 
     const binaryItem = {
       name: "hello world",
@@ -144,13 +144,13 @@ describe("LibsodiumEncryptor", () => {
     const { encryptedItem, nonce } = encryptor.encrypt({
       item: binaryItem,
       fieldsToEncrypt: ["name", "data"],
-      dataKey
+      key: plaintextKey
     })
 
     const { decryptedItem } = encryptor.decrypt({
-      encryptedItem,
+      item: encryptedItem,
       nonce,
-      dataKey,
+      key: plaintextKey,
       fieldsToDecrypt: ["name", "data"]
     })
 

@@ -1,27 +1,20 @@
+import { ItemWithEncryptedFields } from "./encryptors"
+
 export enum KeyType {
   ENCRYPTION = 1,
   SIGNING = 2
 }
 
-export enum EncryptionScheme {
-  V0_LIBSODIUM // experimental
-}
-
-export type EncryptedItemMetadata<T, K extends keyof T> = {
-  scheme: EncryptionScheme
+export interface EncryptedItemMetadata<T, U extends keyof T> {
+  version: string
   nonce: Uint8Array
   encryptedDataKey: Uint8Array
-  encryptedFieldNames: K[]
+  encryptedFieldNames: U[]
 }
 
-export type ItemWithEncryptedFields<T, K extends keyof T> = Omit<T, K> &
-  {
-    [P in K]: Uint8Array
-  }
-
-export type EncryptedJayZItem<T, K extends keyof T> = ItemWithEncryptedFields<
+export type EncryptedJayZItem<T, U extends keyof T> = ItemWithEncryptedFields<
   T,
-  K
+  U
 > & {
-  __jayz__metadata: EncryptedItemMetadata<T, K>
+  __jayz__metadata: EncryptedItemMetadata<T, U>
 }

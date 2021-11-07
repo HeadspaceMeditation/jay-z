@@ -1,29 +1,27 @@
-import { memzero, ready } from "libsodium-wrappers"
-import { DataKey, DataKeyProvider } from "./DataKeyProvider"
-import { Encryptor } from "./Encryptor"
-import { LibsodiumEncryptor } from "./LibsodiumEncryptor"
+import { memzero } from "libsodium-wrappers"
+import { Encryptor, LibsodiumEncryptor } from "./encryptors"
+import { GenerateDataKeyResult, KeyProvider } from "./key-providers"
 import { EncryptedItemMetadata, EncryptedJayZItem } from "./types"
 
-export type JayZConfig = {
-  keyProvider: DataKeyProvider
+export interface JayZProps {
+  keyProvider: KeyProvider
   encryptor?: Encryptor
   maxUsesPerDataKey?: number
 }
 
-export type EncryptItemRequest<T, K extends keyof T> = {
+export interface EncryptItemProps<T, U extends keyof T> {
   item: T
-  fieldsToEncrypt: K[]
+  fieldsToEncrypt: U[]
 }
 
 export class JayZ {
-  public readonly ready = ready
-  private keyProvider: DataKeyProvider
+  private keyProvider: KeyProvider
   private encryptor: Encryptor = new LibsodiumEncryptor()
   private maxUsesPerDataKey: number
-  private currentDataKey?: Promise<DataKey>
+  private currentDataKey?: Promise<GenerateDataKeyResult>
   private currentDataKeyUsesRemaining: number
 
-  constructor(config: JayZConfig) {
+  constructor(config: JayZProps) {
     this.keyProvider = config.keyProvider
     this.encryptor =
       config.encryptor !== undefined
@@ -33,21 +31,21 @@ export class JayZ {
     this.currentDataKeyUsesRemaining = this.maxUsesPerDataKey
   }
 
-  async encryptItem<T, K extends keyof T>(
-    itemToEncrypt: EncryptItemRequest<T, K>
-  ): Promise<EncryptedJayZItem<T, K>> {
+  async encryptItem<T, U extends keyof T>(
+    itemToEncrypt: EncryptItemProps<T, U>
+  ): Promise<EncryptedJayZItem<T, U>> {
     const { item, fieldsToEncrypt } = itemToEncrypt
-    const { dataKey, encryptedDataKey } = await this.getNextDataKey()
+    const { plaintextKey, encryptedKey } = await this.getNextDataKey()
     const { encryptedItem, nonce } = this.encryptor.encrypt({
       item,
       fieldsToEncrypt,
-      dataKey
+      key: plaintextKey
     })
 
-    const __jayz__metadata: EncryptedItemMetadata<T, K> = {
-      encryptedDataKey,
+    const __jayz__metadata: EncryptedItemMetadata<T, U> = {
+      encryptedDataKey: encryptedKey,
       nonce,
-      scheme: this.encryptor.scheme,
+      version: this.encryptor.version,
       encryptedFieldNames: fieldsToEncrypt
     }
 
@@ -57,53 +55,52 @@ export class JayZ {
     }
   }
 
-  encryptItems<T, K extends keyof T>(
-    itemsToEncrypt: EncryptItemRequest<T, K>[]
-  ): Promise<EncryptedJayZItem<T, K>[]> {
+  async encryptItems<T, U extends keyof T>(
+    itemsToEncrypt: EncryptItemProps<T, U>[]
+  ): Promise<EncryptedJayZItem<T, U>[]> {
     if (itemsToEncrypt.length === 0) {
-      return Promise.resolve([])
+      return []
     }
 
     const items = itemsToEncrypt.map((item) => this.encryptItem(item))
     return Promise.all(items)
   }
 
-  async decryptItem<T, K extends keyof T>(
-    itemToDecrypt: EncryptedJayZItem<T, K>
+  async decryptItem<T, U extends keyof T>(
+    itemToDecrypt: EncryptedJayZItem<T, U>
   ): Promise<T> {
-    const {
-      nonce,
-      encryptedDataKey,
-      encryptedFieldNames
-    } = itemToDecrypt.__jayz__metadata
+    const { nonce, encryptedDataKey, encryptedFieldNames } =
+      itemToDecrypt.__jayz__metadata
 
     const encryptedItem = { ...itemToDecrypt }
     delete (encryptedItem as any).__jayz__metadata
 
-    const dataKey = await this.keyProvider.decryptDataKey(encryptedDataKey)
-    const { decryptedItem } = this.encryptor.decrypt<T, K>({
-      encryptedItem,
+    const { plaintextKey } = await this.keyProvider.decryptDataKey(
+      encryptedDataKey
+    )
+    const { decryptedItem } = this.encryptor.decrypt<T, U>({
+      item: encryptedItem,
       fieldsToDecrypt: encryptedFieldNames,
-      dataKey,
+      key: plaintextKey,
       nonce
     })
 
-    memzero(dataKey)
+    memzero(plaintextKey)
     return decryptedItem
   }
 
-  decryptItems<T, K extends keyof T>(
-    itemsToDecrypt: EncryptedJayZItem<T, K>[]
+  async decryptItems<T, U extends keyof T>(
+    itemsToDecrypt: EncryptedJayZItem<T, U>[]
   ): Promise<T[]> {
     if (itemsToDecrypt.length === 0) {
-      return Promise.resolve([])
+      return []
     }
 
     const itemPromises = itemsToDecrypt.map((item) => this.decryptItem(item))
     return Promise.all(itemPromises)
   }
 
-  private getNextDataKey(): Promise<DataKey> {
+  private getNextDataKey(): Promise<GenerateDataKeyResult> {
     if (
       this.currentDataKey !== undefined &&
       this.currentDataKeyUsesRemaining > 0
