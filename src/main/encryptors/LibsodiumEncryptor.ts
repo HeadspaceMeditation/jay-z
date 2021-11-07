@@ -1,14 +1,11 @@
-import stringify from "fast-json-stable-stringify"
 import {
   crypto_kdf_derive_from_key,
   crypto_secretbox_easy,
   crypto_secretbox_KEYBYTES,
   crypto_secretbox_NONCEBYTES,
   crypto_secretbox_open_easy,
-  from_string,
   memzero,
-  randombytes_buf,
-  to_string
+  randombytes_buf
 } from "libsodium-wrappers"
 import { KeyType } from "../types"
 import {
@@ -19,6 +16,7 @@ import {
   EncryptResult,
   ItemWithEncryptedFields
 } from "./Encryptor"
+import { deserialize, serialize } from "./serialization"
 
 /** JSON.parse returns this object, which isn't a node Buffer */
 export interface JSONBuffer {
@@ -45,12 +43,11 @@ export class LibsodiumEncryptor implements Encryptor {
     fieldsToEncrypt.forEach((fieldName) => {
       const fieldValue = item[fieldName]
       if (fieldValue !== undefined && fieldValue !== null) {
-        encryptedFields[fieldName] = crypto_secretbox_easy(this.toBuffer(fieldValue), nonce, encryptionKey)
+        encryptedFields[fieldName] = crypto_secretbox_easy(serialize(fieldValue), nonce, encryptionKey)
       }
     })
 
     memzero(encryptionKey)
-
     const encryptedItem = { ...item, ...encryptedFields }
     return { encryptedItem, nonce }
   }
@@ -67,12 +64,7 @@ export class LibsodiumEncryptor implements Encryptor {
       const cipherText = item[fieldName]
       if (cipherText) {
         const jsonBytes = crypto_secretbox_open_easy(cipherText, nonce, decryptionKey)
-        const fieldValue = JSON.parse(to_string(jsonBytes))
-
-        // If you JSON.parse an object with a binary field that was stringified,
-        // you don't get a Buffer/Uint8Array back but rather a JSON representation of it
-        // So we special case here to convert JSON representations of buffers back to the expected type.
-        decryptedItem[fieldName] = this.convertBinaryFieldsToBuffers(fieldValue)
+        decryptedItem[fieldName] = deserialize(jsonBytes)
       }
     })
 
@@ -89,26 +81,5 @@ export class LibsodiumEncryptor implements Encryptor {
     )
 
     return key
-  }
-
-  private convertBinaryFieldsToBuffers(obj: any): any {
-    if (this.isJSONBuffer(obj)) {
-      return Buffer.from(obj)
-    } else if (typeof obj === "object") {
-      Object.keys(obj).forEach((key) => {
-        obj[key] = this.convertBinaryFieldsToBuffers(obj[key])
-      })
-    }
-
-    return obj
-  }
-
-  private isJSONBuffer(obj: any): obj is JSONBuffer {
-    return obj !== undefined && obj.data instanceof Array && obj.type === "Buffer"
-  }
-
-  private toBuffer<T extends {}>(value: T): Uint8Array {
-    const json = stringify(value)
-    return from_string(json)
   }
 }
