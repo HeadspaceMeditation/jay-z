@@ -5,10 +5,10 @@ import {
   crypto_secretbox_KEYBYTES,
   from_string
 } from "libsodium-wrappers"
-import { FixedKeyProvider } from "../main/key-providers"
-import { LibsodiumEncryptor } from "../main/encryptors"
-import { KeyType } from "../main/types"
-import { aBankAccount, BankAccount } from "./util"
+import { FixedKeyProvider } from "../../main/key-providers"
+import { LibsodiumEncryptor } from "../../main/encryptors"
+import { KeyType } from "../../main/types"
+import { aBankAccount, BankAccount } from "../util"
 
 describe("LibsodiumEncryptor", () => {
   const account = aBankAccount()
