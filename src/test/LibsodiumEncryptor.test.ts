@@ -13,12 +13,7 @@ import { aBankAccount, BankAccount } from "./util"
 describe("LibsodiumEncryptor", () => {
   const account = aBankAccount()
   const encryptor = new LibsodiumEncryptor()
-  const fieldsToEncrypt: (keyof BankAccount)[] = [
-    "accountNumber",
-    "balance",
-    "routingNumber",
-    "notes"
-  ]
+  const fieldsToEncrypt: (keyof BankAccount)[] = ["accountNumber", "balance", "routingNumber", "notes"]
 
   it("should encrypt an item", async () => {
     const dataKeyProvider = await FixedKeyProvider.forLibsodium()
@@ -41,11 +36,7 @@ describe("LibsodiumEncryptor", () => {
     )
 
     fieldsToEncrypt.forEach((fieldName) => {
-      const expectedValue = crypto_secretbox_easy(
-        from_string(stringify(account[fieldName])),
-        nonce,
-        encryptionKey
-      )
+      const expectedValue = crypto_secretbox_easy(from_string(stringify(account[fieldName])), nonce, encryptionKey)
 
       expect(encryptedItem[fieldName]).toEqual(expectedValue)
     })
@@ -72,13 +63,7 @@ describe("LibsodiumEncryptor", () => {
   })
 
   it("should encrypt and decrypt an item with an undefined or null field", async () => {
-    const fieldsToEncrypt: (keyof BankAccount)[] = [
-      "accountNumber",
-      "balance",
-      "routingNumber",
-      "notes",
-      "bankName"
-    ]
+    const fieldsToEncrypt: (keyof BankAccount)[] = ["accountNumber", "balance", "routingNumber", "notes", "bankName"]
 
     const dataKeyProvider = await FixedKeyProvider.forLibsodium()
     const { plaintextKey } = await dataKeyProvider.generateDataKey()

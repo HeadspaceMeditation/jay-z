@@ -1,15 +1,5 @@
-import {
-  crypto_kdf_KEYBYTES,
-  from_base64,
-  randombytes_buf,
-  ready,
-  to_base64
-} from "libsodium-wrappers"
-import {
-  DecryptDataKeyResult,
-  GenerateDataKeyResult,
-  KeyProvider
-} from "./KeyProvider"
+import { crypto_kdf_KEYBYTES, from_base64, randombytes_buf, ready, to_base64 } from "libsodium-wrappers"
+import { DecryptDataKeyResult, GenerateDataKeyResult, KeyProvider } from "./KeyProvider"
 
 /** A DataKeyProvider that uses a single, fixed key. This is intended for testing  */
 export class FixedKeyProvider implements KeyProvider {

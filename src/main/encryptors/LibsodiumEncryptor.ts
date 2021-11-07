@@ -33,9 +33,7 @@ enum LibsodiumEncryptorVersion {
 export class LibsodiumEncryptor implements Encryptor {
   readonly version = LibsodiumEncryptorVersion.v0
 
-  encrypt<T, U extends keyof T>(
-    props: EncryptProps<T, U>
-  ): EncryptResult<T, U> {
+  encrypt<T, U extends keyof T>(props: EncryptProps<T, U>): EncryptResult<T, U> {
     const { item, fieldsToEncrypt, key } = props
     const nonce = randombytes_buf(crypto_secretbox_NONCEBYTES)
     const encryptionKey = this.deriveKey(key, KeyType.ENCRYPTION)
@@ -47,11 +45,7 @@ export class LibsodiumEncryptor implements Encryptor {
     fieldsToEncrypt.forEach((fieldName) => {
       const fieldValue = item[fieldName]
       if (fieldValue !== undefined && fieldValue !== null) {
-        encryptedFields[fieldName] = crypto_secretbox_easy(
-          this.toBuffer(fieldValue),
-          nonce,
-          encryptionKey
-        )
+        encryptedFields[fieldName] = crypto_secretbox_easy(this.toBuffer(fieldValue), nonce, encryptionKey)
       }
     })
 
@@ -72,11 +66,7 @@ export class LibsodiumEncryptor implements Encryptor {
     fieldsToDecrypt.forEach((fieldName) => {
       const cipherText = item[fieldName]
       if (cipherText) {
-        const jsonBytes = crypto_secretbox_open_easy(
-          cipherText,
-          nonce,
-          decryptionKey
-        )
+        const jsonBytes = crypto_secretbox_open_easy(cipherText, nonce, decryptionKey)
         const fieldValue = JSON.parse(to_string(jsonBytes))
 
         // If you JSON.parse an object with a binary field that was stringified,
@@ -114,9 +104,7 @@ export class LibsodiumEncryptor implements Encryptor {
   }
 
   private isJSONBuffer(obj: any): obj is JSONBuffer {
-    return (
-      obj !== undefined && obj.data instanceof Array && obj.type === "Buffer"
-    )
+    return obj !== undefined && obj.data instanceof Array && obj.type === "Buffer"
   }
 
   private toBuffer<T extends {}>(value: T): Uint8Array {

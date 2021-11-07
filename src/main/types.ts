@@ -12,9 +12,6 @@ export interface EncryptedItemMetadata<T, U extends keyof T> {
   encryptedFieldNames: U[]
 }
 
-export type EncryptedJayZItem<T, U extends keyof T> = ItemWithEncryptedFields<
-  T,
-  U
-> & {
+export type EncryptedJayZItem<T, U extends keyof T> = ItemWithEncryptedFields<T, U> & {
   __jayz__metadata: EncryptedItemMetadata<T, U>
 }
