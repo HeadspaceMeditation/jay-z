@@ -1,21 +1,10 @@
-import {
-  DecryptCommand,
-  GenerateDataKeyCommand,
-  KMSClient
-} from "@aws-sdk/client-kms"
+import { DecryptCommand, GenerateDataKeyCommand, KMSClient } from "@aws-sdk/client-kms"
 import { crypto_kdf_KEYBYTES } from "libsodium-wrappers"
-import {
-  DecryptDataKeyResult,
-  GenerateDataKeyResult,
-  KeyProvider
-} from "./KeyProvider"
+import { DecryptDataKeyResult, GenerateDataKeyResult, KeyProvider } from "./KeyProvider"
 
 /** A KeyProvider that uses an AWS KMS CMK to generate data keys */
 export class KmsKeyProvider implements KeyProvider {
-  constructor(
-    private keyId: string,
-    private kms: KMSClient = new KMSClient({})
-  ) {}
+  constructor(private keyId: string, private kms: KMSClient = new KMSClient({})) {}
 
   async generateDataKey(): Promise<GenerateDataKeyResult> {
     const command = new GenerateDataKeyCommand({
@@ -28,9 +17,7 @@ export class KmsKeyProvider implements KeyProvider {
     return { plaintextKey, encryptedKey }
   }
 
-  async decryptDataKey(
-    encryptedDataKey: Uint8Array
-  ): Promise<DecryptDataKeyResult> {
+  async decryptDataKey(encryptedDataKey: Uint8Array): Promise<DecryptDataKeyResult> {
     const command = new DecryptCommand({
       KeyId: this.keyId,
       CiphertextBlob: encryptedDataKey

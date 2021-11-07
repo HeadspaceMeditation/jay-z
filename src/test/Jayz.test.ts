@@ -1,27 +1,12 @@
-import {
-  crypto_kdf_KEYBYTES,
-  randombytes_buf,
-  ready,
-  to_base64
-} from "libsodium-wrappers"
+import { crypto_kdf_KEYBYTES, randombytes_buf, ready, to_base64 } from "libsodium-wrappers"
 import { JayZ, JayZProps } from "../main/JayZ"
-import {
-  DecryptDataKeyResult,
-  FixedKeyProvider,
-  GenerateDataKeyResult,
-  KeyProvider
-} from "../main/key-providers"
+import { DecryptDataKeyResult, FixedKeyProvider, GenerateDataKeyResult, KeyProvider } from "../main/key-providers"
 import { aBankAccount, BankAccount } from "./util"
 
 describe("JayZ", () => {
   beforeAll(async () => await ready)
 
-  const fieldsToEncrypt: (keyof BankAccount)[] = [
-    "accountNumber",
-    "balance",
-    "routingNumber",
-    "notes"
-  ]
+  const fieldsToEncrypt: (keyof BankAccount)[] = ["accountNumber", "balance", "routingNumber", "notes"]
 
   it("should encrypt an item", async () => {
     const { jayz, bankAccount } = setup()
@@ -94,20 +79,15 @@ describe("JayZ", () => {
       { item: bankAccount, fieldsToEncrypt }
     ])
 
-    const [decryptedItem1, decryptedItem2, decryptedItem3] =
-      await jayz.decryptItems([item1, item2, item3])
+    const [decryptedItem1, decryptedItem2, decryptedItem3] = await jayz.decryptItems([item1, item2, item3])
 
     expect(decryptedItem1).toEqual(bankAccount)
     expect(decryptedItem2).toEqual(bankAccount)
     expect(decryptedItem3).toEqual(bankAccount)
     expect(keyProvider.keysIssued).toEqual(2)
-    expect(item1.__jayz__metadata.encryptedDataKey).toEqual(
-      item2.__jayz__metadata.encryptedDataKey
-    )
+    expect(item1.__jayz__metadata.encryptedDataKey).toEqual(item2.__jayz__metadata.encryptedDataKey)
 
-    expect(item1.__jayz__metadata.encryptedDataKey).not.toEqual(
-      item3.__jayz__metadata.encryptedDataKey
-    )
+    expect(item1.__jayz__metadata.encryptedDataKey).not.toEqual(item3.__jayz__metadata.encryptedDataKey)
   })
 
   it("should reuse data keys when encryptItems invoked multiple times", async () => {
@@ -118,9 +98,7 @@ describe("JayZ", () => {
     })
 
     const encryptAndDecrypt = async () => {
-      const [encryptedItem] = await jayz.encryptItems([
-        { item: bankAccount, fieldsToEncrypt }
-      ])
+      const [encryptedItem] = await jayz.encryptItems([{ item: bankAccount, fieldsToEncrypt }])
 
       const [decryptedItem] = await jayz.decryptItems([encryptedItem])
       expect(decryptedItem).toEqual(bankAccount)
@@ -139,9 +117,7 @@ describe("JayZ", () => {
 
 function setup(
   config: JayZProps = {
-    keyProvider: new FixedKeyProvider(
-      to_base64(randombytes_buf(crypto_kdf_KEYBYTES))
-    )
+    keyProvider: new FixedKeyProvider(to_base64(randombytes_buf(crypto_kdf_KEYBYTES)))
   }
 ): { bankAccount: BankAccount; jayz: JayZ } {
   const bankAccount = aBankAccount()
@@ -162,9 +138,7 @@ class CountingKeyProvider implements KeyProvider {
     }
   }
 
-  async decryptDataKey(
-    encryptedDataKey: Uint8Array
-  ): Promise<DecryptDataKeyResult> {
+  async decryptDataKey(encryptedDataKey: Uint8Array): Promise<DecryptDataKeyResult> {
     return { plaintextKey: encryptedDataKey.slice(0) }
   }
 }
