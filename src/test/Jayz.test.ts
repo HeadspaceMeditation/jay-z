@@ -1,4 +1,5 @@
 import { crypto_kdf_KEYBYTES, randombytes_buf, ready, to_base64 } from "libsodium-wrappers"
+import { LibsodiumEncryptor } from "../main/encryptors"
 import { JayZ, JayZProps } from "../main/JayZ"
 import { FixedKeyProvider, LibsodiumKdfKeyProvider } from "../main/key-providers"
 import { CountingKeyProvider } from "./key-providers/CountingKeyProvider"
@@ -40,9 +41,7 @@ describe("JayZ", () => {
 
   it("should not reuse data keys by default when encryptItems invoked with multiple items", async () => {
     const keyProvider = new CountingKeyProvider()
-    const { jayz, bankAccount } = setup({
-      keyProvider
-    })
+    const { jayz, bankAccount } = setup({ encryptor: new LibsodiumEncryptor({ keyProvider }) })
 
     expect(keyProvider.keysIssued).toEqual(0)
     await jayz.encryptItems([
@@ -55,9 +54,7 @@ describe("JayZ", () => {
 
   it("should not reuse data keys by default when encryptItems invoked multiple times", async () => {
     const keyProvider = new CountingKeyProvider()
-    const { jayz, bankAccount } = setup({
-      keyProvider
-    })
+    const { jayz, bankAccount } = setup({ encryptor: new LibsodiumEncryptor({ keyProvider }) })
 
     expect(keyProvider.keysIssued).toEqual(0)
     await jayz.encryptItems([{ item: bankAccount, fieldsToEncrypt }])
@@ -70,9 +67,11 @@ describe("JayZ", () => {
   it("should reuse data keys when encryptItems invoked once with multiple items", async () => {
     const keyProvider = new CountingKeyProvider()
     const { jayz, bankAccount } = setup({
-      keyProvider: new LibsodiumKdfKeyProvider({
-        keyProvider,
-        numKeysToDerivePerDataKey: 2
+      encryptor: new LibsodiumEncryptor({
+        keyProvider: new LibsodiumKdfKeyProvider({
+          keyProvider,
+          numKeysToDerivePerDataKey: 2
+        })
       })
     })
 
@@ -95,9 +94,11 @@ describe("JayZ", () => {
   it("should reuse data keys when encryptItems invoked multiple times", async () => {
     const keyProvider = new CountingKeyProvider()
     const { jayz, bankAccount } = setup({
-      keyProvider: new LibsodiumKdfKeyProvider({
-        keyProvider,
-        numKeysToDerivePerDataKey: 2
+      encryptor: new LibsodiumEncryptor({
+        keyProvider: new LibsodiumKdfKeyProvider({
+          keyProvider,
+          numKeysToDerivePerDataKey: 2
+        })
       })
     })
 
@@ -121,7 +122,9 @@ describe("JayZ", () => {
 
 function setup(
   config: JayZProps = {
-    keyProvider: new FixedKeyProvider(to_base64(randombytes_buf(crypto_kdf_KEYBYTES)))
+    encryptor: new LibsodiumEncryptor({
+      keyProvider: new FixedKeyProvider(to_base64(randombytes_buf(crypto_kdf_KEYBYTES)))
+    })
   }
 ): { bankAccount: BankAccount; jayz: JayZ } {
   const bankAccount = aBankAccount()

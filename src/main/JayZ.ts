@@ -1,11 +1,7 @@
-import { memzero } from "libsodium-wrappers"
-import { Encryptor, LibsodiumEncryptor } from "./encryptors"
-import { KeyProvider } from "./key-providers"
-import { EncryptedItemMetadata, EncryptedJayZItem } from "./types"
+import { EncryptedJayZItem, Encryptor } from "./encryptors"
 
 export interface JayZProps {
-  keyProvider: KeyProvider
-  encryptor?: Encryptor
+  encryptor: Encryptor
 }
 
 export interface EncryptItemProps<T, U extends keyof T> {
@@ -14,36 +10,16 @@ export interface EncryptItemProps<T, U extends keyof T> {
 }
 
 export class JayZ {
-  private keyProvider: KeyProvider
-  private encryptor: Encryptor = new LibsodiumEncryptor()
+  private encryptor: Encryptor
 
-  constructor(config: JayZProps) {
-    this.keyProvider = config.keyProvider
-    this.encryptor = config.encryptor !== undefined ? config.encryptor : new LibsodiumEncryptor()
+  constructor(props: JayZProps) {
+    this.encryptor = props.encryptor
   }
 
   async encryptItem<T, U extends keyof T>(itemToEncrypt: EncryptItemProps<T, U>): Promise<EncryptedJayZItem<T, U>> {
     const { item, fieldsToEncrypt } = itemToEncrypt
-    const { plaintextKey, encryptedKey, metadata } = await this.keyProvider.generateDataKey()
-    const { encryptedItem, nonce } = this.encryptor.encrypt({
-      item,
-      fieldsToEncrypt,
-      key: plaintextKey
-    })
-
-    const __jayz__metadata: EncryptedItemMetadata<T, U> = {
-      encryptedDataKey: encryptedKey,
-      keyId: metadata?.keyId,
-      nonce,
-      version: this.encryptor.version,
-      encryptedFieldNames: fieldsToEncrypt
-    }
-
-    memzero(plaintextKey)
-    return {
-      ...encryptedItem,
-      __jayz__metadata
-    }
+    const { encryptedItem } = await this.encryptor.encrypt({ item, fieldsToEncrypt })
+    return encryptedItem
   }
 
   async encryptItems<T, U extends keyof T>(
@@ -57,21 +33,8 @@ export class JayZ {
     return Promise.all(items)
   }
 
-  async decryptItem<T, U extends keyof T>(itemToDecrypt: EncryptedJayZItem<T, U>): Promise<T> {
-    const { nonce, encryptedDataKey, encryptedFieldNames, keyId } = itemToDecrypt.__jayz__metadata
-
-    const encryptedItem = { ...itemToDecrypt }
-    delete (encryptedItem as any).__jayz__metadata
-
-    const { plaintextKey } = await this.keyProvider.decryptDataKey(encryptedDataKey, keyId ? { keyId } : undefined)
-    const { decryptedItem } = this.encryptor.decrypt<T, U>({
-      item: encryptedItem,
-      fieldsToDecrypt: encryptedFieldNames,
-      key: plaintextKey,
-      nonce
-    })
-
-    memzero(plaintextKey)
+  async decryptItem<T, U extends keyof T>(item: EncryptedJayZItem<T, U>): Promise<T> {
+    const { decryptedItem } = await this.encryptor.decrypt<T, U>({ item })
     return decryptedItem
   }
 
