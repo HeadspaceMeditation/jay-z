@@ -20,7 +20,7 @@ export function deserialize(bytes: Uint8Array): any {
 function convertJsonBuffers(obj: any): any {
   if (isJsonBuffer(obj)) {
     return Buffer.from(obj)
-  } else if (typeof obj === "object") {
+  } else if (obj !== null && typeof obj === "object") {
     Object.keys(obj).forEach((key) => {
       obj[key] = convertJsonBuffers(obj[key])
     })
@@ -35,5 +35,5 @@ interface JsonBuffer {
 }
 
 function isJsonBuffer(obj: any): obj is JsonBuffer {
-  return obj !== undefined && obj.data instanceof Array && obj.type === "Buffer"
+  return obj !== undefined && obj !== null && obj.data instanceof Array && obj.type === "Buffer"
 }

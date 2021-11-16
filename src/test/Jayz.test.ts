@@ -14,17 +14,15 @@ describe("JayZ", () => {
     const { jayz, bankAccount } = setup()
     const encryptedItem = await jayz.encryptItem({
       item: bankAccount,
-      fieldsToEncrypt
+      fieldsToEncrypt: ["accountNumber", "balance", "routingNumber", "notes"]
     })
 
     expect(encryptedItem.pk).toEqual("account-123")
     expect(encryptedItem.sk).toEqual("Flava Flav")
-    expect(encryptedItem.accountNumber).not.toEqual("123")
-    expect(encryptedItem.routingNumber).not.toEqual("456")
-    expect(encryptedItem.balance).not.toEqual(100)
-    expect(encryptedItem.notes).not.toEqual({
-      previousBalances: [0, 50]
-    })
+    expect(encryptedItem).not.toHaveProperty("accountNumber")
+    expect(encryptedItem).not.toHaveProperty("routingNumber")
+    expect(encryptedItem).not.toHaveProperty("balance")
+    expect(encryptedItem).not.toHaveProperty("notes")
   })
 
   it("should decrypt an item", async () => {

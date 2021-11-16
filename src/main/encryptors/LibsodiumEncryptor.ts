@@ -5,14 +5,8 @@ import {
   randombytes_buf
 } from "libsodium-wrappers"
 import { KeyProvider } from "main"
-import {
-  DecryptProps,
-  DecryptResult,
-  Encryptor,
-  EncryptProps,
-  EncryptResult,
-  ItemWithEncryptedFields
-} from "./Encryptor"
+import { isLegacyJayZItem, LegacyEncryptedJayZItem, MetadataVersion } from "."
+import { DecryptProps, DecryptResult, Encryptor, EncryptProps, EncryptResult } from "./Encryptor"
 import { deserialize, serialize } from "./serialization"
 
 enum LibsodiumEncryptorVersion {
@@ -28,51 +22,71 @@ export class LibsodiumEncryptor implements Encryptor {
   constructor(private props: LibsodiumEncryptorProps) {}
 
   async encrypt<T, U extends keyof T>(props: EncryptProps<T, U>): Promise<EncryptResult<T, U>> {
-    const { item, fieldsToEncrypt } = props
-    const key = await this.props.keyProvider.generateDataKey()
-    const nonce = randombytes_buf(crypto_secretbox_NONCEBYTES)
+    const { item } = props
+    const plaintextFields = { ...item } as Omit<T, U>
+    const fieldsToEncrypt = {} as Pick<T, U>
 
-    const encryptedFields: {
-      [K in U]: Uint8Array
-    } = {} as ItemWithEncryptedFields<T, U>
-
-    fieldsToEncrypt.forEach((fieldName) => {
+    props.fieldsToEncrypt.forEach((fieldName) => {
+      delete (plaintextFields as any)[fieldName]
       const fieldValue = item[fieldName]
-      if (fieldValue !== undefined && fieldValue !== null) {
-        encryptedFields[fieldName] = crypto_secretbox_easy(serialize(fieldValue), nonce, key.plaintextKey)
+      if (fieldValue !== undefined) {
+        fieldsToEncrypt[fieldName] = fieldValue
       }
     })
 
-    const encryptedItem = {
-      ...item,
-      ...encryptedFields,
-      __jayz__metadata: {
-        encryptedDataKey: key.encryptedKey,
-        keyId: key.metadata?.keyId,
-        nonce,
-        version: this.version,
-        encryptedFieldNames: fieldsToEncrypt
+    const nonce = randombytes_buf(crypto_secretbox_NONCEBYTES)
+    const key = await this.props.keyProvider.generateDataKey()
+    const encryptedFields = crypto_secretbox_easy(serialize(fieldsToEncrypt), nonce, key.plaintextKey)
+    return {
+      encryptedItem: {
+        ...plaintextFields,
+        __jayz__metadata: {
+          metadataVersion: MetadataVersion.V1,
+          encryptedDataKey: key.encryptedKey,
+          keyId: key.metadata?.keyId,
+          nonce,
+          encryptorId: this.version,
+          encryptedFields
+        }
       }
     }
-
-    return { encryptedItem }
   }
 
   async decrypt<T, U extends keyof T>(props: DecryptProps<T, U>): Promise<DecryptResult<T>> {
-    const { __jayz__metadata, ...plaintextFields } = props.item
-    const { encryptedDataKey, keyId, nonce, encryptedFieldNames } = __jayz__metadata
+    const { item } = props
+    if (isLegacyJayZItem(item)) {
+      return this.legacyDecrypt(item)
+    } else {
+      const { __jayz__metadata, ...plaintextFields } = item
+      const { encryptedDataKey, encryptedFields, keyId, nonce } = __jayz__metadata
+      const { plaintextKey } = await this.props.keyProvider.decryptDataKey(
+        encryptedDataKey,
+        keyId ? { keyId } : undefined
+      )
+      const jsonBytes = crypto_secretbox_open_easy(encryptedFields, nonce, plaintextKey)
+      return {
+        decryptedItem: {
+          ...plaintextFields,
+          ...deserialize(jsonBytes)
+        }
+      }
+    }
+  }
 
-    const decryptedItem: { [P in keyof T]: T[P] } = {
-      ...plaintextFields
-    } as any
-
+  private async legacyDecrypt<T, U extends keyof T>(item: LegacyEncryptedJayZItem<T, U>): Promise<DecryptResult<T>> {
+    const { __jayz__metadata, ...plaintextFields } = item
+    const { encryptedDataKey, encryptedFieldNames, keyId, nonce } = __jayz__metadata
     const { plaintextKey } = await this.props.keyProvider.decryptDataKey(
       encryptedDataKey,
       keyId ? { keyId } : undefined
     )
 
+    const decryptedItem: { [P in keyof T]: T[P] } = {
+      ...plaintextFields
+    } as any
+
     encryptedFieldNames.forEach((fieldName) => {
-      const cipherText = props.item[fieldName]
+      const cipherText = item[fieldName]
       if (cipherText) {
         const jsonBytes = crypto_secretbox_open_easy(cipherText, nonce, plaintextKey)
         decryptedItem[fieldName] = deserialize(jsonBytes)
