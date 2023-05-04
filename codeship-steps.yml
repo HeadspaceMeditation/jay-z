@@ -1,7 +1,0 @@
-- name: build
-  service: jay_z
-  command: /bin/sh -c "yarn install && yarn build"
-
-- name: test
-  service: jay_z
-  command: /bin/sh -c "yarn test"

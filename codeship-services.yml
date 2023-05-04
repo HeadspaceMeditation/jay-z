@@ -1,7 +1,0 @@
-jay_z:
-  build: .
-  cached: true
-
-  #Volume needed for a step to use another step's artifact
-  volumes:
-    - .:/usr/app
