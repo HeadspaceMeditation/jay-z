@@ -5,7 +5,7 @@
 Jay-Z is a TypeScript library that makes sever-side data encryption super easy at the application layer.
 It's built on [libsodium](https://github.com/jedisct1/libsodium.js) and supports AWS KMS out of the box.
 
-And if you're persisting data to DynamoDB - JayZ loves [Beyonce](https://github.com/ginger-io/beyonce). She supports him out the box (obviously).
+And if you're persisting data to DynamoDB - JayZ loves [Beyonce](https://github.com/HeadspaceMeditation/beyonce). She supports him out the box (obviously).
 
 ## Motivation
 
