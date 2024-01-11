@@ -1,28 +1,39 @@
-import { crypto_kdf_KEYBYTES, randombytes_buf, ready, to_base64 } from "libsodium-wrappers"
-import { LibsodiumEncryptor } from "../main/encryptors"
-import { JayZ, JayZProps } from "../main/JayZ"
-import { FixedKeyProvider, LibsodiumKdfKeyProvider } from "../main/key-providers"
-import { CountingKeyProvider } from "./key-providers/CountingKeyProvider"
+import {
+  crypto_kdf_KEYBYTES,
+  randombytes_buf,
+  to_base64,
+  ready
+} from "libsodium-wrappers"
+import { DataKey, DataKeyProvider } from "../main/DataKeyProvider"
+import { FixedDataKeyProvider } from "../main/FixedDataKeyProvider"
+import { JayZ, JayZConfig } from "../main/JayZ"
 import { aBankAccount, BankAccount } from "./util"
 
 describe("JayZ", () => {
   beforeAll(async () => await ready)
 
-  const fieldsToEncrypt: (keyof BankAccount)[] = ["accountNumber", "balance", "routingNumber", "notes"]
+  const fieldsToEncrypt: (keyof BankAccount)[] = [
+    "accountNumber",
+    "balance",
+    "routingNumber",
+    "notes"
+  ]
 
   it("should encrypt an item", async () => {
     const { jayz, bankAccount } = setup()
     const encryptedItem = await jayz.encryptItem({
       item: bankAccount,
-      fieldsToEncrypt: ["accountNumber", "balance", "routingNumber", "notes"]
+      fieldsToEncrypt
     })
 
     expect(encryptedItem.pk).toEqual("account-123")
     expect(encryptedItem.sk).toEqual("Flava Flav")
-    expect(encryptedItem).not.toHaveProperty("accountNumber")
-    expect(encryptedItem).not.toHaveProperty("routingNumber")
-    expect(encryptedItem).not.toHaveProperty("balance")
-    expect(encryptedItem).not.toHaveProperty("notes")
+    expect(encryptedItem.accountNumber).not.toEqual("123")
+    expect(encryptedItem.routingNumber).not.toEqual("456")
+    expect(encryptedItem.balance).not.toEqual(100)
+    expect(encryptedItem.notes).not.toEqual({
+      previousBalances: [0, 50]
+    })
   })
 
   it("should decrypt an item", async () => {
@@ -39,7 +50,9 @@ describe("JayZ", () => {
 
   it("should not reuse data keys by default when encryptItems invoked with multiple items", async () => {
     const keyProvider = new CountingKeyProvider()
-    const { jayz, bankAccount } = setup({ encryptor: new LibsodiumEncryptor({ keyProvider }) })
+    const { jayz, bankAccount } = setup({
+      keyProvider
+    })
 
     expect(keyProvider.keysIssued).toEqual(0)
     await jayz.encryptItems([
@@ -52,7 +65,9 @@ describe("JayZ", () => {
 
   it("should not reuse data keys by default when encryptItems invoked multiple times", async () => {
     const keyProvider = new CountingKeyProvider()
-    const { jayz, bankAccount } = setup({ encryptor: new LibsodiumEncryptor({ keyProvider }) })
+    const { jayz, bankAccount } = setup({
+      keyProvider
+    })
 
     expect(keyProvider.keysIssued).toEqual(0)
     await jayz.encryptItems([{ item: bankAccount, fieldsToEncrypt }])
@@ -65,12 +80,8 @@ describe("JayZ", () => {
   it("should reuse data keys when encryptItems invoked once with multiple items", async () => {
     const keyProvider = new CountingKeyProvider()
     const { jayz, bankAccount } = setup({
-      encryptor: new LibsodiumEncryptor({
-        keyProvider: new LibsodiumKdfKeyProvider({
-          keyProvider,
-          numKeysToDerivePerDataKey: 2
-        })
-      })
+      keyProvider,
+      maxUsesPerDataKey: 2
     })
 
     const [item1, item2, item3] = await jayz.encryptItems([
@@ -79,29 +90,36 @@ describe("JayZ", () => {
       { item: bankAccount, fieldsToEncrypt }
     ])
 
-    const [decryptedItem1, decryptedItem2, decryptedItem3] = await jayz.decryptItems([item1, item2, item3])
+    const [
+      decryptedItem1,
+      decryptedItem2,
+      decryptedItem3
+    ] = await jayz.decryptItems([item1, item2, item3])
 
     expect(decryptedItem1).toEqual(bankAccount)
     expect(decryptedItem2).toEqual(bankAccount)
     expect(decryptedItem3).toEqual(bankAccount)
     expect(keyProvider.keysIssued).toEqual(2)
-    expect(item1.__jayz__metadata.encryptedDataKey).toEqual(item2.__jayz__metadata.encryptedDataKey)
-    expect(item1.__jayz__metadata.encryptedDataKey).not.toEqual(item3.__jayz__metadata.encryptedDataKey)
+    expect(item1.__jayz__metadata.encryptedDataKey).toEqual(
+      item2.__jayz__metadata.encryptedDataKey
+    )
+
+    expect(item1.__jayz__metadata.encryptedDataKey).not.toEqual(
+      item3.__jayz__metadata.encryptedDataKey
+    )
   })
 
   it("should reuse data keys when encryptItems invoked multiple times", async () => {
     const keyProvider = new CountingKeyProvider()
     const { jayz, bankAccount } = setup({
-      encryptor: new LibsodiumEncryptor({
-        keyProvider: new LibsodiumKdfKeyProvider({
-          keyProvider,
-          numKeysToDerivePerDataKey: 2
-        })
-      })
+      keyProvider,
+      maxUsesPerDataKey: 2
     })
 
     const encryptAndDecrypt = async () => {
-      const [encryptedItem] = await jayz.encryptItems([{ item: bankAccount, fieldsToEncrypt }])
+      const [encryptedItem] = await jayz.encryptItems([
+        { item: bankAccount, fieldsToEncrypt }
+      ])
 
       const [decryptedItem] = await jayz.decryptItems([encryptedItem])
       expect(decryptedItem).toEqual(bankAccount)
@@ -119,13 +137,31 @@ describe("JayZ", () => {
 })
 
 function setup(
-  config: JayZProps = {
-    encryptor: new LibsodiumEncryptor({
-      keyProvider: new FixedKeyProvider(to_base64(randombytes_buf(crypto_kdf_KEYBYTES)))
-    })
+  config: JayZConfig = {
+    keyProvider: new FixedDataKeyProvider(
+      to_base64(randombytes_buf(crypto_kdf_KEYBYTES))
+    )
   }
 ): { bankAccount: BankAccount; jayz: JayZ } {
   const bankAccount = aBankAccount()
   const jayz = new JayZ(config)
   return { jayz, bankAccount }
+}
+
+class CountingKeyProvider implements DataKeyProvider {
+  public keysIssued = 0
+
+  async generateDataKey(): Promise<DataKey> {
+    await ready
+    const key = randombytes_buf(crypto_kdf_KEYBYTES)
+    this.keysIssued += 1
+    return {
+      encryptedDataKey: key,
+      dataKey: key
+    }
+  }
+
+  async decryptDataKey(encryptedDataKey: Uint8Array): Promise<Uint8Array> {
+    return encryptedDataKey.slice(0)
+  }
 }
