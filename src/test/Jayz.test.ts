@@ -24,7 +24,7 @@ describe("JayZ", () => {
     const encryptedItem = await jayz.encryptItem({
       item: bankAccount,
       fieldsToEncrypt
-    })
+    }) as any
 
     expect(encryptedItem.pk).toEqual("account-123")
     expect(encryptedItem.sk).toEqual("Flava Flav")
@@ -34,6 +34,7 @@ describe("JayZ", () => {
     expect(encryptedItem.notes).not.toEqual({
       previousBalances: [0, 50]
     })
+    expect(encryptedItem.__jayz__metadata.encryptedFields).toBeDefined()
   })
 
   it("should decrypt an item", async () => {

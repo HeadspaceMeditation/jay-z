@@ -3,12 +3,17 @@ import {
   crypto_kdf_derive_from_key,
   crypto_secretbox_easy,
   crypto_secretbox_KEYBYTES,
-  from_string
+  crypto_secretbox_NONCEBYTES,
+  from_string,
+  memzero,
+  randombytes_buf
 } from "libsodium-wrappers"
 import { FixedDataKeyProvider } from "../main/FixedDataKeyProvider"
 import { LibsodiumEncryptor } from "../main/LibsodiumEncryptor"
-import { KeyType } from "../main/types"
+import { ItemWithEncryptedFields, KeyType } from "../main/types"
 import { aBankAccount, BankAccount } from "./util"
+import { EncryptParams, LegacyEncryptResult } from "../main/Encryptor"
+import { serialize } from "../main/serialization"
 
 describe("LibsodiumEncryptor", () => {
   const account = aBankAccount()
@@ -24,7 +29,38 @@ describe("LibsodiumEncryptor", () => {
     const dataKeyProvider = await FixedDataKeyProvider.forLibsodium()
     const { dataKey } = await dataKeyProvider.generateDataKey()
 
-    const { encryptedItem, nonce } = encryptor.encrypt({
+    const { nonce, encryptedFields } = encryptor.encrypt({
+      item: account,
+      fieldsToEncrypt,
+      dataKey
+    })
+
+    const encryptionKey = crypto_kdf_derive_from_key(
+      crypto_secretbox_KEYBYTES,
+      KeyType.ENCRYPTION,
+      "__jayz__",
+      dataKey
+    )
+
+    const fields = {} as any
+    fieldsToEncrypt.forEach((fieldName) => {
+      fields[fieldName] = account[fieldName]
+    })
+
+    const encryptedItemFields = crypto_secretbox_easy(
+      from_string(stringify(fields)),
+      nonce,
+      encryptionKey
+    )
+
+    expect(encryptedFields).toEqual(encryptedItemFields)
+  })
+
+  it("should encrypt a legacy item", async () => {
+    const dataKeyProvider = await FixedDataKeyProvider.forLibsodium()
+    const { dataKey } = await dataKeyProvider.generateDataKey()
+
+    const { encryptedItem, nonce } = legacyEncrypt({
       item: account,
       fieldsToEncrypt,
       dataKey
@@ -55,7 +91,27 @@ describe("LibsodiumEncryptor", () => {
     const dataKeyProvider = await FixedDataKeyProvider.forLibsodium()
     const { dataKey } = await dataKeyProvider.generateDataKey()
 
-    const { encryptedItem, nonce } = encryptor.encrypt({
+    const { plaintextFields, nonce, encryptedFields } = encryptor.encrypt({
+      item: account,
+      fieldsToEncrypt,
+      dataKey
+    })
+
+    const { decryptedItem } = encryptor.decrypt({
+      encryptedItem: plaintextFields,
+      nonce,
+      dataKey,
+      encryptedFields
+    })
+
+    expect(decryptedItem).toEqual(account)
+  })
+
+  it("should decrypt a legacy item", async () => {
+    const dataKeyProvider = await FixedDataKeyProvider.forLibsodium()
+    const { dataKey } = await dataKeyProvider.generateDataKey()
+
+    const { encryptedItem, nonce } = legacyEncrypt({
       item: account,
       fieldsToEncrypt,
       dataKey
@@ -86,17 +142,17 @@ describe("LibsodiumEncryptor", () => {
     const emptyValues = [undefined, null]
     emptyValues.forEach((emptyValue) => {
       const item = { ...account, bankName: emptyValue }
-      const { encryptedItem, nonce } = encryptor.encrypt({
+      const { plaintextFields, nonce, encryptedFields } = encryptor.encrypt({
         item,
         fieldsToEncrypt,
         dataKey
       })
 
       const { decryptedItem } = encryptor.decrypt({
-        encryptedItem,
+        encryptedItem: plaintextFields,
         nonce,
         dataKey,
-        fieldsToDecrypt: fieldsToEncrypt
+        encryptedFields
       })
 
       expect(decryptedItem).toEqual(item)
@@ -112,17 +168,17 @@ describe("LibsodiumEncryptor", () => {
       binaryData: Buffer.from("hello world", "utf-8")
     }
 
-    const { encryptedItem, nonce } = encryptor.encrypt({
+    const { plaintextFields, nonce, encryptedFields } = encryptor.encrypt({
       item: binaryItem,
       fieldsToEncrypt: ["name", "binaryData"],
       dataKey
     })
 
     const { decryptedItem } = encryptor.decrypt({
-      encryptedItem,
+      encryptedItem: plaintextFields,
       nonce,
       dataKey,
-      fieldsToDecrypt: ["name", "binaryData"]
+      encryptedFields
     })
 
     expect(decryptedItem).toEqual(binaryItem)
@@ -141,19 +197,63 @@ describe("LibsodiumEncryptor", () => {
       }
     }
 
-    const { encryptedItem, nonce } = encryptor.encrypt({
+    const { plaintextFields, nonce, encryptedFields } = encryptor.encrypt({
       item: binaryItem,
       fieldsToEncrypt: ["name", "data"],
       dataKey
     })
 
     const { decryptedItem } = encryptor.decrypt({
-      encryptedItem,
+      encryptedItem: plaintextFields,
       nonce,
       dataKey,
-      fieldsToDecrypt: ["name", "data"]
+      encryptedFields
     })
 
     expect(decryptedItem).toEqual(binaryItem)
   })
 })
+
+/** This is a copy/pasted "legacy" version of LibsodiumEncryptor's encrypt function, which had
+ *  a bug that reused nonces across multiple encrypt operations.
+ *
+ *  It is preserved here for testing to ensure we can decrypt items encrypted with this format
+ *  */
+function legacyEncrypt<T, K extends keyof T>(
+  params: EncryptParams<T, K>
+): LegacyEncryptResult<T, K> {
+  function deriveKey(dataKey: Uint8Array, keyType: KeyType): Uint8Array {
+    const key = crypto_kdf_derive_from_key(
+      crypto_secretbox_KEYBYTES,
+      keyType,
+      "__jayz__",
+      dataKey
+    )
+  
+    return key
+  }
+
+  const { item, fieldsToEncrypt, dataKey } = params
+  const nonce = randombytes_buf(crypto_secretbox_NONCEBYTES)
+  const encryptionKey = deriveKey(dataKey, KeyType.ENCRYPTION)
+
+  const encryptedFields: {
+    [P in K]: Uint8Array
+  } = {} as ItemWithEncryptedFields<T, K>
+
+  fieldsToEncrypt.forEach((fieldName) => {
+    const fieldValue = item[fieldName]
+    if (fieldValue !== undefined && fieldValue !== null) {
+      encryptedFields[fieldName] = crypto_secretbox_easy(
+        serialize(fieldValue),
+        nonce,
+        encryptionKey
+      )
+    }
+  })
+
+  memzero(encryptionKey)
+
+  const encryptedItem = { ...item, ...encryptedFields }
+  return { encryptedItem, nonce }
+}

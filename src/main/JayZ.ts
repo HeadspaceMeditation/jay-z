@@ -2,7 +2,7 @@ import { memzero, ready } from "libsodium-wrappers"
 import { DataKey, DataKeyProvider } from "./DataKeyProvider"
 import { Encryptor } from "./Encryptor"
 import { LibsodiumEncryptor } from "./LibsodiumEncryptor"
-import { EncryptedItemMetadata, EncryptedJayZItem } from "./types"
+import { EncryptedItemMetadataV1, EncryptedJayZItem, LegacyEncryptedItemMetadata, MetadataVersion } from "./types"
 
 export type JayZConfig = {
   keyProvider: DataKeyProvider
@@ -38,21 +38,22 @@ export class JayZ {
   ): Promise<EncryptedJayZItem<T, K>> {
     const { item, fieldsToEncrypt } = itemToEncrypt
     const { dataKey, encryptedDataKey } = await this.getNextDataKey()
-    const { encryptedItem, nonce } = this.encryptor.encrypt({
+    const { plaintextFields, nonce, encryptedFields } = this.encryptor.encrypt({
       item,
       fieldsToEncrypt,
       dataKey
     })
 
-    const __jayz__metadata: EncryptedItemMetadata<T, K> = {
+    const __jayz__metadata: EncryptedItemMetadataV1 = {
       encryptedDataKey,
       nonce,
       scheme: this.encryptor.scheme,
-      encryptedFieldNames: fieldsToEncrypt
+      encryptedFields,
+      metadataVersion: MetadataVersion.V1
     }
 
     return {
-      ...encryptedItem,
+      ...plaintextFields,
       __jayz__metadata
     }
   }
@@ -74,8 +75,10 @@ export class JayZ {
     const {
       nonce,
       encryptedDataKey,
-      encryptedFieldNames
     } = itemToDecrypt.__jayz__metadata
+
+    const encryptedFields = (itemToDecrypt.__jayz__metadata as EncryptedItemMetadataV1).encryptedFields
+    const encryptedFieldNames = (itemToDecrypt.__jayz__metadata as LegacyEncryptedItemMetadata<T, K>).encryptedFieldNames
 
     const encryptedItem = { ...itemToDecrypt }
     delete (encryptedItem as any).__jayz__metadata
@@ -85,7 +88,8 @@ export class JayZ {
       encryptedItem,
       fieldsToDecrypt: encryptedFieldNames,
       dataKey,
-      nonce
+      nonce,
+      encryptedFields
     })
 
     memzero(dataKey)

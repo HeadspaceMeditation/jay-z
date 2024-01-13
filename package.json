@@ -1,6 +1,6 @@
 {
   "name": "@ginger.io/jay-z",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "Youve got 99 problems, but application-layer encryption aint one",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
