@@ -2,7 +2,7 @@ import { memzero, ready } from "libsodium-wrappers"
 import { DataKey, DataKeyProvider } from "./DataKeyProvider"
 import { Encryptor } from "./Encryptor"
 import { LibsodiumEncryptor } from "./LibsodiumEncryptor"
-import { EncryptedItemMetadataV1, EncryptedJayZItem, LegacyEncryptedItemMetadata, MetadataVersion } from "./types"
+import { EncryptedItemMetadataV1, EncryptedJayZItem, EncryptedJayZItemV1, LegacyEncryptedItemMetadata, MetadataVersion } from "./types"
 
 export type JayZConfig = {
   keyProvider: DataKeyProvider
@@ -12,7 +12,7 @@ export type JayZConfig = {
 
 export type EncryptItemRequest<T, K extends keyof T> = {
   item: T
-  fieldsToEncrypt: K[]
+  fieldsToEncrypt: readonly K[]
 }
 
 export class JayZ {
@@ -35,7 +35,7 @@ export class JayZ {
 
   async encryptItem<T, K extends keyof T>(
     itemToEncrypt: EncryptItemRequest<T, K>
-  ): Promise<EncryptedJayZItem<T, K>> {
+  ): Promise<EncryptedJayZItemV1<T, K>> {
     const { item, fieldsToEncrypt } = itemToEncrypt
     const { dataKey, encryptedDataKey } = await this.getNextDataKey()
     const { plaintextFields, nonce, encryptedFields } = this.encryptor.encrypt({

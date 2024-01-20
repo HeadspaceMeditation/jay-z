@@ -12,28 +12,27 @@ import { aBankAccount, BankAccount } from "./util"
 describe("JayZ", () => {
   beforeAll(async () => await ready)
 
-  const fieldsToEncrypt: (keyof BankAccount)[] = [
+  const fieldsToEncrypt = [
     "accountNumber",
     "balance",
     "routingNumber",
     "notes"
-  ]
+  ] as const
 
   it("should encrypt an item", async () => {
     const { jayz, bankAccount } = setup()
     const encryptedItem = await jayz.encryptItem({
       item: bankAccount,
       fieldsToEncrypt
-    }) as any
+    })
+    const encryptedItemFields = Object.keys(encryptedItem)
 
     expect(encryptedItem.pk).toEqual("account-123")
     expect(encryptedItem.sk).toEqual("Flava Flav")
-    expect(encryptedItem.accountNumber).not.toEqual("123")
-    expect(encryptedItem.routingNumber).not.toEqual("456")
-    expect(encryptedItem.balance).not.toEqual(100)
-    expect(encryptedItem.notes).not.toEqual({
-      previousBalances: [0, 50]
-    })
+    expect(encryptedItemFields).not.toContain("accountNumber")
+    expect(encryptedItemFields).not.toContain("balance")
+    expect(encryptedItemFields).not.toContain("routingNumber")
+    expect(encryptedItemFields).not.toContain("notes")
     expect(encryptedItem.__jayz__metadata.encryptedFields).toBeDefined()
   })
 

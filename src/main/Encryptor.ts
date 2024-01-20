@@ -2,7 +2,7 @@ import { EncryptionScheme, ItemWithEncryptedFields, ItemWithoutEncryptedFields }
 
 export type EncryptParams<T, K extends keyof T> = {
   item: T
-  fieldsToEncrypt: K[]
+  fieldsToEncrypt: readonly K[]
   dataKey: Uint8Array
 }
 
