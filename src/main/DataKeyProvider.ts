@@ -3,7 +3,7 @@ export interface DataKeyProvider {
   decryptDataKey(encryptedDataKey: Uint8Array): Promise<Uint8Array>
 }
 
-export type DataKey = {
+export interface DataKey {
   dataKey: Uint8Array
   encryptedDataKey: Uint8Array
 }

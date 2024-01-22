@@ -7,14 +7,14 @@ export enum EncryptionScheme {
   V0_LIBSODIUM // experimental
 }
 
-export type LegacyEncryptedItemMetadata<T, K extends keyof T> = {
+export interface LegacyEncryptedItemMetadata<T, K extends keyof T> {
   scheme: EncryptionScheme
   nonce: Uint8Array
   encryptedDataKey: Uint8Array
   encryptedFieldNames: K[]
 }
 
-export type EncryptedItemMetadataV1 = {
+export interface EncryptedItemMetadataV1 {
   metadataVersion: MetadataVersion.V1
   scheme: EncryptionScheme
   nonce: Uint8Array

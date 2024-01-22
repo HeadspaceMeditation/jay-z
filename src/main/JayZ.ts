@@ -4,13 +4,13 @@ import { Encryptor } from "./Encryptor"
 import { LibsodiumEncryptor } from "./LibsodiumEncryptor"
 import { EncryptedItemMetadataV1, EncryptedJayZItem, EncryptedJayZItemV1, LegacyEncryptedItemMetadata, MetadataVersion } from "./types"
 
-export type JayZConfig = {
+export interface JayZConfig {
   keyProvider: DataKeyProvider
   encryptor?: Encryptor
   maxUsesPerDataKey?: number
 }
 
-export type EncryptItemRequest<T, K extends keyof T> = {
+export interface EncryptItemRequest<T, K extends keyof T> {
   item: T
   fieldsToEncrypt: readonly K[]
 }
