@@ -51,13 +51,10 @@ export class LibsodiumEncryptor implements Encryptor {
   }
 
   decrypt<T, K extends keyof T>(params: DecryptParams<T, K> | LegacyDecryptParams<T,K>): DecryptResult<T> {
-    const { encryptedItem, nonce, dataKey } = params
-    const encryptedFields = (params as DecryptParams<T, K>).encryptedFields
-  
-    if (!encryptedFields) {
-      return this.legacyDecrypt(params as LegacyDecryptParams<T, K>)
+    if (!('encryptedFields' in params)) {
+      return this.legacyDecrypt(params)
     }
-
+    const { encryptedItem, nonce, dataKey, encryptedFields } = params
     const decryptionKey = this.deriveKey(dataKey, KeyType.ENCRYPTION)
 
     const jsonBytes = crypto_secretbox_open_easy(encryptedFields, nonce, decryptionKey)
