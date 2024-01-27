@@ -1,8 +1,8 @@
 import { memzero, ready } from "libsodium-wrappers"
 import { DataKey, DataKeyProvider } from "./DataKeyProvider"
-import { Encryptor } from "./Encryptor"
+import { DecryptParams, Encryptor, LegacyDecryptParams } from "./Encryptor"
 import { LibsodiumEncryptor } from "./LibsodiumEncryptor"
-import { EncryptedItemMetadataV1, EncryptedJayZItem, EncryptedJayZItemV1, LegacyEncryptedItemMetadata, MetadataVersion } from "./types"
+import { EncryptedItemMetadataV1, EncryptedJayZItem, EncryptedJayZItemV1, ItemWithEncryptedFields, ItemWithoutEncryptedFields, LegacyEncryptedItemMetadata, LegacyEncryptedJayZItem, MetadataVersion } from "./types"
 
 export interface JayZConfig {
   keyProvider: DataKeyProvider
@@ -72,25 +72,21 @@ export class JayZ {
   async decryptItem<T, K extends keyof T>(
     itemToDecrypt: EncryptedJayZItem<T, K>
   ): Promise<T> {
-    const {
-      nonce,
-      encryptedDataKey,
-    } = itemToDecrypt.__jayz__metadata
-
-    const encryptedFields = (itemToDecrypt.__jayz__metadata as EncryptedItemMetadataV1).encryptedFields
-    const encryptedFieldNames = (itemToDecrypt.__jayz__metadata as LegacyEncryptedItemMetadata<T, K>).encryptedFieldNames
+    const { nonce, encryptedDataKey } = itemToDecrypt.__jayz__metadata
 
     const encryptedItem = { ...itemToDecrypt }
     delete (encryptedItem as any).__jayz__metadata
 
     const dataKey = await this.keyProvider.decryptDataKey(encryptedDataKey)
-    const { decryptedItem } = this.encryptor.decrypt<T, K>({
-      encryptedItem,
-      fieldsToDecrypt: encryptedFieldNames,
-      dataKey,
-      nonce,
-      encryptedFields
-    })
+
+    const { decryptedItem } = this.encryptor.decrypt<T, K>(
+      this.generateDecryptParams(
+        itemToDecrypt.__jayz__metadata,
+        dataKey,
+        nonce,
+        encryptedItem
+      )
+    )
 
     memzero(dataKey)
     return decryptedItem
@@ -105,6 +101,30 @@ export class JayZ {
 
     const itemPromises = itemsToDecrypt.map((item) => this.decryptItem(item))
     return Promise.all(itemPromises)
+  }
+
+  private generateDecryptParams<T, K extends keyof T>(
+    metadata: LegacyEncryptedItemMetadata<T, K> | EncryptedItemMetadataV1,
+    dataKey: Uint8Array,
+    nonce: Uint8Array,
+    encryptedItem: EncryptedJayZItem<T, K>
+  ): DecryptParams<T, K> | LegacyDecryptParams<T, K> {
+    if ('encryptedFieldNames' in metadata) {
+      // If the metadata contains encryptedFieldNames, then it's a legacy encrypted item
+      return {
+        encryptedItem: encryptedItem as LegacyEncryptedJayZItem<T, K>,
+        dataKey,
+        nonce,
+        fieldsToDecrypt: metadata.encryptedFieldNames
+      }
+    } else {
+      return {
+        encryptedItem,
+        dataKey,
+        nonce,
+        encryptedFields: metadata.encryptedFields
+      }
+    }
   }
 
   private getNextDataKey(): Promise<DataKey> {
