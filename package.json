@@ -1,6 +1,6 @@
 {
   "name": "@ginger.io/jay-z",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "Youve got 99 problems, but application-layer encryption aint one",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,7 +9,7 @@
     "./src"
   ],
   "dependencies": {
-    "@aws-sdk/client-kms": "^3.40.0",
+    "aws-sdk": "^2.853.0",
     "fast-json-stable-stringify": "^2.1.0",
     "js-yaml": "^3.13.1",
     "libsodium-wrappers": "^0.7.6"
